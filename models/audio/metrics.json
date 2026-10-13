@@ -1,0 +1,19 @@
+{
+  "model_type": "RandomForestClassifier",
+  "features": "20-MFCC Coefficients",
+  "sample_rate": 16000,
+  "classes": [
+    "accident_impact",
+    "ambulance_siren",
+    "fire_truck_siren",
+    "heavy_honking",
+    "normal_traffic",
+    "police_siren"
+  ],
+  "samples_count": 120,
+  "accuracy": 0.9667,
+  "precision": 0.9722,
+  "recall": 0.9667,
+  "f1_score": 0.9663,
+  "evaluated": true
+}

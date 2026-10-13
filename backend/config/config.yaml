@@ -1,0 +1,87 @@
+system:
+  project_name: "Smart Acoustic & Vision Traffic Signal"
+  version: "1.0.0"
+  log_level: "INFO"
+
+video:
+  camera_index: 0
+  width: 640
+  height: 480
+  confidence_threshold: 0.45
+  iou_threshold: 0.45
+  frame_skip: 1
+  model_name: "yolov8n.pt"
+  classes_to_detect:
+    - 2   # car
+    - 3   # motorcycle
+    - 5   # bus
+    - 7   # truck
+  roi:
+    # Quadrant based division (fractional 0.0 - 1.0 of frame width/height)
+    north: { y_min: 0.0, y_max: 0.4, x_min: 0.25, x_max: 0.75 }
+    south: { y_min: 0.6, y_max: 1.0, x_min: 0.25, x_max: 0.75 }
+    west:  { y_min: 0.2, y_max: 0.8, x_min: 0.0,  x_max: 0.4 }
+    east:  { y_min: 0.2, y_max: 0.8, x_min: 0.6,  x_max: 1.0 }
+
+audio:
+  sample_rate: 16000
+  chunk_duration: 1.5
+  hop_duration: 0.75
+  n_mfcc: 20
+  n_mels: 64
+  confidence_threshold: 0.65
+  device_index: -1 # -1 for default microphone
+  model_path: "models/audio/audio_classifier.pkl"
+  classes:
+    - "ambulance_siren"
+    - "fire_truck_siren"
+    - "police_siren"
+    - "heavy_honking"
+    - "accident_impact"
+    - "normal_traffic"
+
+traffic:
+  low_density: 5
+  medium_density: 10
+  normal_green_time: 10
+  yellow_time: 3
+  all_red_time: 1
+  high_density_green_time: 20
+  min_green_time: 6
+  max_green_time: 30
+
+emergency:
+  audio_weight: 0.50
+  video_weight: 0.50
+  threshold: 0.75
+  consecutive_frames_required: 3
+  emergency_clear_delay_sec: 5.0
+  audio_only_confirmation_window_sec: 3.0
+  green_corridor_time: 25
+
+mqtt:
+  enabled: true
+  broker: "localhost"
+  port: 1883
+  keepalive: 60
+  client_id: "traffic_signal_ai_backend"
+  username: ""
+  password: ""
+  topics:
+    signal: "traffic/signal"
+    decision: "traffic/decision"
+    status: "traffic/status"
+    audio: "traffic/audio"
+    video: "traffic/video"
+
+esp32:
+  simulation_mode: true
+  heartbeat_timeout_sec: 10.0
+  pins:
+    north: { red: 23, yellow: 22, green: 21 }
+    south: { red: 19, yellow: 18, green: 5 }
+    east:  { red: 17, yellow: 16, green: 4 }
+    west:  { red: 0,  yellow: 2,  green: 15 }
+
+database:
+  db_path: "traffic_events.db"

@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: traffic_mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    environment:
+      - MOSQUITTO_ALLOW_ANONYMOUS=true
+
+  traffic-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: traffic_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MQTT_BROKER=mqtt-broker
+      - MQTT_PORT=1883
+    depends_on:
+      - mqtt-broker
