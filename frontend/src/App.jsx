@@ -72,7 +72,7 @@ export default function App() {
               <Sparkles className="w-5 h-5 text-indigo-400" />
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Software-only multimodal traffic signal demo using uploaded audio and video
+              Live laptop camera + microphone AI controlling an ESP8266 traffic-signal prototype
             </p>
           </div>
 
@@ -121,7 +121,7 @@ export default function App() {
 
         {/* Footer */}
         <footer className="pt-4 pb-6 border-t border-slate-900 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Smart Acoustic & Vision Traffic Signal — Software Demo</span>
+          <span>Smart Acoustic & Vision Traffic Signal — ESP8266 Hardware Prototype</span>
           <span>FastAPI + OpenCV + YOLOv8 + Audio AI</span>
         </footer>
       </div>

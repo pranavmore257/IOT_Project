@@ -59,3 +59,39 @@ def test_emergency_preemption_safety():
     assert state["state"] == "EW_YELLOW"
     assert state["signals"]["EAST"] == "YELLOW"
     assert state["signals"]["NORTH"] == "RED"
+
+
+def test_each_axis_receives_its_own_green_duration():
+    controller = SignalController({
+        "normal_green_time": 10,
+        "yellow_time": 3,
+        "all_red_time": 1
+    })
+    green_times = {"NS": 20, "EW": 12}
+
+    state = controller.update(0.0, {"is_emergency": False, "mode": "NORMAL"}, green_times)
+    assert state["allocated_seconds"] == 20
+
+    controller.update(20.1, {"is_emergency": False, "mode": "NORMAL"}, green_times)
+    controller.update(23.2, {"is_emergency": False, "mode": "NORMAL"}, green_times)
+    state = controller.update(24.3, {"is_emergency": False, "mode": "NORMAL"}, green_times)
+
+    assert state["state"] == "EW_GREEN"
+    assert state["allocated_seconds"] == 12
+
+
+def test_low_demand_axis_still_gets_a_green_turn():
+    controller = SignalController({
+        "normal_green_time": 10,
+        "yellow_time": 3,
+        "all_red_time": 1
+    })
+    green_times = {"NS": 20, "EW": 6}
+    controller.update(0.0, {"is_emergency": False, "mode": "NORMAL"}, green_times)
+    controller.update(20.1, {"is_emergency": False, "mode": "NORMAL"}, green_times)
+    controller.update(23.2, {"is_emergency": False, "mode": "NORMAL"}, green_times)
+    state = controller.update(24.3, {"is_emergency": False, "mode": "NORMAL"}, green_times)
+
+    assert state["signals"]["EAST"] == "GREEN"
+    assert state["signals"]["WEST"] == "GREEN"
+    assert state["allocated_seconds"] == 6

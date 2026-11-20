@@ -35,10 +35,11 @@ class SignalController:
         self,
         current_time: float,
         eval_result: Dict[str, Any],
-        adaptive_green: int
+        adaptive_green: Any
     ) -> Dict[str, Any]:
         """Updates FSM based on elapsed time and emergency/adaptive evaluation."""
-        if self.state_start_time is None:
+        first_update = self.state_start_time is None
+        if first_update:
             self.state_start_time = current_time
 
         is_emergency = eval_result.get("is_emergency", False)
@@ -77,11 +78,22 @@ class SignalController:
                 return self.get_state_dict(current_time)
 
         # Standard / Adaptive Traffic Cycle
-        self.mode = "ADAPTIVE" if eval_mode == "ADAPTIVE" or adaptive_green != self.normal_green_time else "NORMAL"
-        self._step_normal_cycle(current_time, adaptive_green)
+        green_times = adaptive_green if isinstance(adaptive_green, dict) else {
+            "NS": adaptive_green,
+            "EW": adaptive_green
+        }
+        if first_update and self.state in ("NS_GREEN", "EW_GREEN"):
+            axis = "NS" if self.state == "NS_GREEN" else "EW"
+            self.allocated_duration = green_times.get(axis, self.normal_green_time)
+        self.mode = "ADAPTIVE" if (
+            eval_mode == "ADAPTIVE" or
+            green_times.get("NS") != self.normal_green_time or
+            green_times.get("EW") != self.normal_green_time
+        ) else "NORMAL"
+        self._step_normal_cycle(current_time, green_times)
         return self.get_state_dict(current_time)
 
-    def _step_normal_cycle(self, current_time: float, adaptive_green: int):
+    def _step_normal_cycle(self, current_time: float, green_times: Dict[str, int]):
         elapsed = current_time - self.state_start_time
 
         if self.state == "NS_GREEN":
@@ -100,7 +112,7 @@ class SignalController:
 
         elif self.state == "ALL_RED_1":
             if elapsed >= self.allocated_duration:
-                self._transition_to("EW_GREEN", adaptive_green, current_time)
+                self._transition_to("EW_GREEN", green_times.get("EW", self.normal_green_time), current_time)
                 self.signals = {"NORTH": "RED", "SOUTH": "RED", "EAST": "GREEN", "WEST": "GREEN"}
             else:
                 self.signals = {"NORTH": "RED", "SOUTH": "RED", "EAST": "RED", "WEST": "RED"}
@@ -121,13 +133,13 @@ class SignalController:
 
         elif self.state == "ALL_RED_2":
             if elapsed >= self.allocated_duration:
-                self._transition_to("NS_GREEN", adaptive_green, current_time)
+                self._transition_to("NS_GREEN", green_times.get("NS", self.normal_green_time), current_time)
                 self.signals = {"NORTH": "GREEN", "SOUTH": "GREEN", "EAST": "RED", "WEST": "RED"}
             else:
                 self.signals = {"NORTH": "RED", "SOUTH": "RED", "EAST": "RED", "WEST": "RED"}
 
         else:
-            self._transition_to("NS_GREEN", adaptive_green, current_time)
+            self._transition_to("NS_GREEN", green_times.get("NS", self.normal_green_time), current_time)
             self.signals = {"NORTH": "GREEN", "SOUTH": "GREEN", "EAST": "RED", "WEST": "RED"}
 
     def _initiate_emergency_preemption(self, target_dir: str, current_time: float):

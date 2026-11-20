@@ -21,7 +21,7 @@ async def get_system_status(request: Request):
     app_state = request.app.state
     v_res = app_state.vision_pipeline.get_latest_result()
     a_res = app_state.audio_pipeline.get_latest_result()
-    esp_res = app_state.esp32_controller.get_status()
+    hardware_res = app_state.hardware_controller.get_status()
 
     return {
         "system": {
@@ -40,15 +40,16 @@ async def get_system_status(request: Request):
             "status": "CONNECTED" if a_res.get("is_microphone_connected") else "SIMULATED / SYNTHETIC",
             "model": a_res.get("inference_mode", "HEURISTIC_BASELINE")
         },
-        "esp32": {
-            "connected": esp_res.get("esp32_connected", False),
-            "status": "CONNECTED" if esp_res.get("esp32_connected") else "DISCONNECTED",
-            "control_mode": esp_res.get("control_mode", "SIMULATION MODE")
+        "hardware": {
+            "device": "ESP8266",
+            "connected": hardware_res.get("hardware_connected", False),
+            "status": "CONNECTED" if hardware_res.get("hardware_connected") else "DISCONNECTED",
+            "control_mode": hardware_res.get("control_mode", "SIMULATION MODE")
         },
         "mqtt": {
-            "connected": esp_res.get("mqtt_connected", False),
-            "status": "CONNECTED" if esp_res.get("mqtt_connected") else "OFFLINE (SIMULATION)",
-            "broker": esp_res.get("broker")
+            "connected": hardware_res.get("mqtt_connected", False),
+            "status": "CONNECTED" if hardware_res.get("mqtt_connected") else "OFFLINE (SIMULATION)",
+            "broker": hardware_res.get("broker")
         },
         "demo_mode": v_res.get("demo_override", False) or a_res.get("demo_override", False)
     }

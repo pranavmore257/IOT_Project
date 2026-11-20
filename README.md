@@ -1,22 +1,22 @@
 # Smart Acoustic & Vision Traffic Signal
 
-> **Real-Time Multimodal AI Traffic Signal Management using Audio, Video, and ESP32 IoT Prototype**
+> **Real-Time Multimodal AI Traffic Signal Management using Laptop Audio/Video and an ESP8266 IoT Prototype**
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![YOLOv8](https://img.shields.io/badge/Vision%20AI-Ultralytics%20YOLOv8n-FF6F00.svg)](https://docs.ultralytics.com/)
 [![Audio AI](https://img.shields.io/badge/Audio%20AI-MFCC%20%2B%20Random%20Forest%20(96.7%25)-green.svg)]()
 [![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite%20%2B%20Tailwind-61DAFB.svg)](https://vitejs.dev/)
-[![ESP32](https://img.shields.io/badge/IoT%20Hardware-ESP32%20(12--LED%20Array)-E7352C.svg)](https://www.espressif.com/)
+[![ESP8266](https://img.shields.io/badge/IoT%20Hardware-ESP8266%20%2B%2074HC595-E7352C.svg)](https://www.espressif.com/)
 
 ---
 
 ## 1. Project Overview
 
-The **Smart Acoustic & Vision Traffic Signal** is a college-level AI + IoT prototype demonstrating how real-time computer vision, acoustic artificial intelligence, a multimodal decision engine, and an ESP32-based microcontroller work synchronously to manage traffic at a 4-way intersection.
+The **Smart Acoustic & Vision Traffic Signal** is an educational AI + IoT prototype. The laptop webcam and microphone provide live sensor input; the decision engine sends signal commands over Wi-Fi/MQTT to an ESP8266 NodeMCU, which drives tabletop LEDs through two cascaded 74HC595 shift registers.
 
 > [!NOTE]
-> **Prototype Scope:** This is an academic research prototype controlling a physical miniature 12-LED 4-way intersection. It demonstrates smart city concepts on miniature breadboard hardware and real-time dashboard software.
+> **Prototype Scope:** This is an academic tabletop prototype, not a certified traffic controller and must never be connected to public-road signals. Camera position and the configured image ROIs affect lane counts.
 
 ### The Problem It Solves
 Traditional fixed-timer traffic lights waste hours in traffic congestion and delay emergency vehicles (ambulances, fire engines, police), leading to preventable fatalities. This system solves both issues simultaneously:
@@ -73,7 +73,7 @@ Traditional fixed-timer traffic lights waste hours in traffic congestion and del
                                        |
                                        v
                      +-----------------------------------+
-                     |        ESP32 IoT Controller       |
+                     |    ESP8266 + 2 x 74HC595          |
                      |   (Fail-Safe Autonomous Watchdog) |
                      +-----------------+-----------------+
                                        |
@@ -104,29 +104,35 @@ $$\text{EmergencyScore} = (W_{\text{audio}} \times C_{\text{audio}}) + (W_{\text
 
 ---
 
-## 4. Hardware Requirements & Pin Mapping
+## 4. Hardware Requirements & Wiring
 
 ### Required Hardware
-* **1x ESP32 Development Board** (NodeMCU-32S / ESP-WROOM-32)
+* **1x ESP8266 NodeMCU**
+* **2x 74HC595 shift registers** for the complete 12-LED model
 * **4x Red LEDs, 4x Yellow LEDs, 4x Green LEDs** (12 LEDs total for 4 directions)
 * **12x 220Ω Resistors**
 * **1x Breadboard & Jumper Wires**
 * **1x USB Cable**
 * **1x Laptop Webcam & Microphone**
 
-### ESP32 GPIO Pin Configuration
-Configured at the top of [`esp32/traffic_signal/traffic_signal.ino`](file:///c:/Users/ACER/Downloads/ProjectIoT/esp32/traffic_signal/traffic_signal.ino):
+### Stage 1: test one signal directly
 
-| Intersection Approach | Red LED | Yellow LED | Green LED | Resistor |
-| :--- | :---: | :---: | :---: | :---: |
-| **NORTH Approach** | GPIO 23 | GPIO 22 | GPIO 21 | 220 Ω |
-| **SOUTH Approach** | GPIO 19 | GPIO 18 | GPIO 5  | 220 Ω |
-| **EAST Approach**  | GPIO 17 | GPIO 16 | GPIO 4  | 220 Ω |
-| **WEST Approach**  | GPIO 0  | GPIO 2  | GPIO 15 | 220 Ω |
-| **Optional Buzzer**| GPIO 13 | — | — | Active High |
+Before adding the shift registers, use one LED of each color and three 220Ω resistors. Connect NodeMCU **D1 → resistor → red LED anode**, **D2 → resistor → yellow LED anode**, and **D5 → resistor → green LED anode**. Connect all three LED cathodes (short legs) to NodeMCU GND. Flash [`esp8266/stage1_test/stage1_test.ino`](./esp8266/stage1_test/stage1_test.ino); the cycle is red 3s, yellow 1s, green 3s. Do not connect the microphone/webcam to the ESP8266.
 
-> [!TIP]
-> **ESP32 Disconnected?** The system automatically switches to **SIMULATION MODE** on the dashboard. The project will run smoothly even without the physical microcontroller attached!
+### Full four-way model: two cascaded shift registers
+
+For the full model, remove the direct D1/D2/D5 LED connections and use one 220Ω resistor in series with each of the 12 LEDs. Power both 74HC595s from **3.3V**, join all grounds, tie **OE to GND** and **MR to 3.3V**, and connect the first register's Q7' to the second register's DS. Connect NodeMCU **D7 → DS (data)**, **D5 → SH_CP (clock)**, and **D6 → ST_CP (latch)**. Each LED output goes from its Q output through its own resistor to the LED anode; all cathodes go to GND.
+
+| Register output | LED |
+| :--- | :--- |
+| First 74HC595 Q0-Q2 | North Red, Yellow, Green |
+| First 74HC595 Q3-Q5 | South Red, Yellow, Green |
+| First 74HC595 Q6-Q7, second Q0 | East Red, Yellow, Green |
+| Second 74HC595 Q1-Q3 | West Red, Yellow, Green |
+
+Use the full wiring table and board notes in [`esp8266/traffic_signal/traffic_signal.ino`](./esp8266/traffic_signal/traffic_signal.ino). The NodeMCU and both shift registers must share a common ground.
+
+The controller phases the opposing approaches together (N/S, then E/W). It assigns each axis a separate green duration from its detected demand, bounded by the configured minimum and maximum. The lower-demand axis still receives its turn every cycle; this version does not grant independent right-of-way to each of the four approaches.
 
 ---
 
@@ -205,7 +211,7 @@ python scripts/evaluate_audio_model.py
 Follow this sequence during your project presentation or viva examination:
 
 1. **Start System:** Start backend and frontend. The dashboard connects via WebSocket at 10 Hz.
-2. **Observe System Status:** Check top status bar badges (Webcam, Mic, Backend, ESP32, MQTT).
+2. **Observe System Status:** Check the top status bar for the laptop webcam/microphone and whether signal output is in ESP8266 hardware or simulation mode.
 3. **Inspect 4-Way Traffic Cycle:** Watch the 4-way intersection rotate through North/South GREEN (10s) $\rightarrow$ YELLOW (3s) $\rightarrow$ ALL-RED (1s) $\rightarrow$ East/West GREEN.
 4. **Demonstrate Video AI (YOLOv8):** Show cars, bikes, buses, and trucks on webcam. Bounding boxes, labels, confidences, and counts are drawn in real-time.
 5. **Demonstrate Traffic Density & Adaptive Timing:** Click `[ Heavy Traffic ]` in Demo Controls or show multiple vehicles. Notice vehicle count jump to 14, density turn **HIGH**, and green duration extend to **20 seconds**.
@@ -217,7 +223,7 @@ Follow this sequence during your project presentation or viva examination:
    * **Video AI:** Ambulance Detected (92%) from NORTH.
    * **Multimodal Fusion:** Emergency Score $= 93.5\% \ge 75\%$.
    * **Decision:** `🚨 EMERGENCY: GREEN CORRIDOR (NORTH)`.
-   * **ESP32:** Conflicting East/West immediately receives safe yellow clearance before North turns solid GREEN!
+   * **ESP8266:** Conflicting East/West receives safe yellow clearance before North/South turns solid GREEN!
 9. **Demonstrate Case 4 (Accident Safety Hold):** Click `[ Accident Sound ]`. Crash audio signature triggers immediate **ACCIDENT ALERT** and safe all-RED hold.
 10. **Clear & Reset:** Click `[ Reset to Live ]`. The system cycles through yellow clearance and safely resumes normal routine 4-way traffic.
 11. **View SQLite Event History:** Scroll down to the SQLite table to show all logged decisions, scores, and timestamps.
@@ -225,20 +231,23 @@ Follow this sequence during your project presentation or viva examination:
 
 ---
 
-## 9. ESP32 Firmware Flashing
+## 9. ESP8266 Firmware & Live Hardware Setup
 
-1. Open `esp32/traffic_signal/traffic_signal.ino` in the **Arduino IDE**.
-2. Install required libraries via Library Manager:
+1. Install the Arduino IDE and add the ESP8266 board package using the official Boards Manager URL: `https://arduino.esp8266.com/stable/package_esp8266com_index.json`.
+2. For the first bench test, open `esp8266/stage1_test/stage1_test.ino`, select **NodeMCU 1.0 (ESP-12E Module)** and the correct serial port, then upload and verify the 3s/1s/3s cycle.
+3. Build the full four-way circuit with two 74HC595 shift registers, then open `esp8266/traffic_signal/traffic_signal.ino`. Install these Arduino Library Manager libraries:
    * `ArduinoJson` (v6 or v7)
    * `PubSubClient` (by Nick O'Leary)
-3. Set your Wi-Fi SSID, Password, and your Laptop's Local IP address:
+4. Ensure an MQTT broker (for example Mosquitto) is reachable on the same Wi-Fi as the NodeMCU. Set the Wi-Fi credentials and laptop's LAN IPv4 address in the sketch:
    ```cpp
-   const char* WIFI_SSID     = "YOUR_WIFI_NAME";
+   const char* WIFI_SSID = "YOUR_WIFI_SSID";
    const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
-   const char* MQTT_BROKER   = "192.168.1.100"; // Laptop IP running backend
+   const char* MQTT_BROKER = "192.168.1.100"; // Laptop IP running the MQTT broker
    ```
-4. Select board **ESP32 Dev Module** and click **Upload**.
-5. Open Serial Monitor at `115200` baud.
+5. In `backend/config/config.yaml`, keep MQTT broker `localhost` when running the backend and broker directly on the laptop. Select **NodeMCU 1.0 (ESP-12E Module)**, upload the full sketch, and open Serial Monitor at `115200` baud.
+6. Configure camera placement and `video.roi` in `backend/config/config.yaml` for the four approaches as seen by your webcam. Run the backend on the laptop; it uses camera index `0` and the default microphone unless overridden. Check `/api/status` and the dashboard: absent sensors or hardware are explicitly reported as simulation/disconnected, not live.
+
+Backend configuration supports `CAMERA_INDEX`, `MQTT_BROKER`, `MQTT_PORT`, `MQTT_USERNAME`, and `MQTT_PASSWORD` environment overrides.
 
 ---
 
@@ -265,7 +274,7 @@ All 7 unit tests pass:
 | :--- | :--- |
 | **Why not use real city traffic lights?** | Safety regulations and legal standards forbid uncertified prototypes from directly interfacing with municipal municipal grids. This prototype controls an accurate miniature 12-LED 4-way intersection. |
 | **Why combine Audio and Video AI?** | Video alone cannot detect an emergency vehicle approaching around a blind corner or through heavy fog. Audio alone can be fooled by movies or phone ringtones. Fusing both yields high accuracy (>93%) and eliminates false preemption. |
-| **Why does the ESP32 have a 15-second watchdog?** | If the laptop loses power or Wi-Fi drops, city signals must not freeze. The ESP32 detects heartbeat loss and runs an autonomous local fixed cycle with safe yellow clearance. |
+| **Why does the ESP8266 have a 15-second watchdog?** | If the laptop loses power or Wi-Fi drops, this tabletop prototype switches to a local fixed cycle with yellow and all-red clearance. This is a demonstration fallback, not a certified road-safety system. |
 | **What audio features were extracted?** | 20 Mel-Frequency Cepstral Coefficients (MFCCs) representing spectral power on the human auditory scale, plus RMS energy, spectral centroid, and zero-crossing rates. |
 | **Why YOLOv8n?** | YOLOv8 nano has only 3.2 million parameters, allowing real-time 25-30 FPS inference directly on a normal laptop CPU without requiring an external GPU. |
 
@@ -273,4 +282,4 @@ All 7 unit tests pass:
 
 ## 12. License & Acknowledgments
 
-Developed as a college AI + IoT academic project prototype. Built with FastAPI, Ultralytics YOLO, React, and ESP32 Arduino.
+Developed as a college AI + IoT academic project prototype. Built with FastAPI, Ultralytics YOLO, React, ESP8266 Arduino, and 74HC595 shift registers.

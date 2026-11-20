@@ -4,7 +4,7 @@ import threading
 from typing import Dict, Any, Callable, Optional
 
 class MQTTTrafficClient:
-    """MQTT communication client for publishing traffic signals and listening to ESP32."""
+    """MQTT communication client for publishing signal commands and receiving hardware status."""
 
     def __init__(self, mqtt_config: Dict[str, Any]):
         self.config = mqtt_config

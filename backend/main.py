@@ -12,7 +12,7 @@ from backend.vision.inference import VisionPipeline
 from backend.audio.inference import AudioPipeline
 from backend.decision.decision_engine import MultimodalDecisionEngine
 from backend.communication.mqtt_client import MQTTTrafficClient
-from backend.communication.esp32_controller import ESP32Controller
+from backend.communication.esp8266_controller import ESP8266Controller
 from backend.api.routes import api_router
 from backend.api.demo_routes import demo_router
 from backend.api.websocket import ws_manager
@@ -33,14 +33,14 @@ async def system_tick_loop(app: FastAPI):
             decision_res = app_state.decision_engine.process(a_res, v_res)
             app_state.latest_decision = decision_res
 
-            # 3. Dispatch to ESP32 over MQTT
+            # 3. Dispatch to the ESP8266 over MQTT
             sig_state = decision_res.get("signal_state", {})
             mode = decision_res.get("mode", "NORMAL")
             priority = decision_res.get("priority", "LOW")
-            app_state.esp32_controller.dispatch_signal_state(sig_state, mode, priority)
+            app_state.hardware_controller.dispatch_signal_state(sig_state, mode, priority)
 
             # 4. Broadcast unified state via WebSockets
-            esp_status = app_state.esp32_controller.get_status()
+            esp_status = app_state.hardware_controller.get_status()
             broadcast_payload = {
                 "timestamp": time.time(),
                 "video": v_res,
@@ -51,7 +51,7 @@ async def system_tick_loop(app: FastAPI):
                     "uptime": round(time.time() - app_state.start_time, 1),
                     "camera_connected": v_res.get("is_camera_connected", False),
                     "microphone_connected": a_res.get("is_microphone_connected", False),
-                    "esp32_connected": esp_status.get("esp32_connected", False),
+                    "hardware_connected": esp_status.get("hardware_connected", False),
                     "mqtt_connected": esp_status.get("mqtt_connected", False),
                     "control_mode": esp_status.get("control_mode", "SIMULATION MODE"),
                     "demo_mode": v_res.get("demo_override", False) or a_res.get("demo_override", False)
@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI):
 
     mqtt_cfg = CONFIG.get("mqtt", {})
     app.state.mqtt_client = MQTTTrafficClient(mqtt_cfg)
-    app.state.esp32_controller = ESP32Controller(app.state.mqtt_client)
+    app.state.hardware_controller = ESP8266Controller(app.state.mqtt_client)
 
     app.state.latest_decision = {
         "mode": "NORMAL",
@@ -116,7 +116,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Smart Acoustic & Vision Traffic Signal API",
-    description="Multimodal AI + ESP32 IoT Traffic Management Platform",
+    description="Multimodal AI + ESP8266 IoT Traffic Management Platform",
     version="1.0.0",
     lifespan=lifespan
 )

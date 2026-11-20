@@ -50,7 +50,7 @@ export default function SystemStatusBar({ system, isDemoMode }) {
 
         <div className="flex items-center gap-1.5 rounded-md border border-cyan-500/40 bg-cyan-950/60 px-2.5 py-1 font-medium text-cyan-300">
           <Activity className="h-3.5 w-3.5" />
-          <span>Signal Output: SOFTWARE SIM</span>
+          <span>Signal Output: {system?.control_mode || 'SIMULATION MODE'}</span>
         </div>
 
         {/* Demo Mode Pill */}

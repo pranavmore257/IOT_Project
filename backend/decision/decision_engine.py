@@ -35,20 +35,26 @@ class MultimodalDecisionEngine:
         # 1. Multimodal Emergency Evaluation
         eval_result = self.evaluator.evaluate(audio_data, video_data, current_time)
 
-        # 2. Determine active axis based on current state
+        # 2. Calculate each axis independently so congestion on one axis does
+        # not extend the next green for an empty axis.
         curr_state = self.signal_ctrl.state
         active_axis = "EW" if "EW" in curr_state else "NS"
 
-        # 3. Adaptive Green Calculation
+        # 3. Calculate adaptive greens for both axes. The signal controller
+        # uses the upcoming axis's duration after its yellow/all-red clearance.
         density = video_data.get("density", "LOW")
         veh_count = video_data.get("vehicle_count", 0)
         dir_counts = video_data.get("direction_counts", {})
-        adaptive_green = self.adaptive_ctrl.calculate_green_time(
-            density, veh_count, dir_counts, active_axis
-        )
+        adaptive_greens = {
+            axis: self.adaptive_ctrl.calculate_green_time(
+                density, veh_count, dir_counts, axis
+            )
+            for axis in ("NS", "EW")
+        }
+        adaptive_green = adaptive_greens[active_axis]
 
         # 4. Step Signal Controller FSM
-        signal_state = self.signal_ctrl.update(current_time, eval_result, adaptive_green)
+        signal_state = self.signal_ctrl.update(current_time, eval_result, adaptive_greens)
 
         # 5. Database Logging for notable events
         mode = signal_state.get("mode", "NORMAL")
@@ -95,6 +101,7 @@ class MultimodalDecisionEngine:
             "target_direction": eval_result.get("target_direction", "NONE"),
             "reason": eval_result.get("reason", "Routine cycle"),
             "adaptive_green_seconds": adaptive_green,
+            "adaptive_green_by_axis": adaptive_greens,
             "signal_state": signal_state,
             "fusion_math": {
                 "audio_weight": self.evaluator.audio_weight,

@@ -43,6 +43,8 @@ audio:
 traffic:
   low_density: 5
   medium_density: 10
+  medium_axis_count: 4
+  high_axis_count: 8
   normal_green_time: 10
   yellow_time: 3
   all_red_time: 1
@@ -74,14 +76,13 @@ mqtt:
     audio: "traffic/audio"
     video: "traffic/video"
 
-esp32:
+esp8266:
   simulation_mode: true
   heartbeat_timeout_sec: 10.0
-  pins:
-    north: { red: 23, yellow: 22, green: 21 }
-    south: { red: 19, yellow: 18, green: 5 }
-    east:  { red: 17, yellow: 16, green: 4 }
-    west:  { red: 0,  yellow: 2,  green: 15 }
+  shift_register:
+    data: "D7"
+    latch: "D6"
+    clock: "D5"
 
 database:
   db_path: "traffic_events.db"
